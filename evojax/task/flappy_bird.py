@@ -97,7 +97,7 @@ def update_state(action, state: State, key):
     
     # Handle action
     jump = jnp.clip(action, 0.0, 1.0)[0] * 3.0
-    new_pos_y = state.agent_state.pos_y + jump - 0.1
+    new_pos_y = state.agent_state.pos_y + jump - 1.0
 
     pos_y = jnp.where(new_pos_y > 10.0, 10.0, new_pos_y)
 
