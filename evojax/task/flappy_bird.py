@@ -118,7 +118,7 @@ def update_state(action, state: State, key):
 
     # If dist 0 and between top and bottom, reward
     reward += jnp.where(jnp.bitwise_and(
-        opening_dist <= 0.0, 
+        opening_dist == 0.0, 
         jnp.bitwise_and(
             agent_state.pos_y < state.opening_state.top,
             agent_state.pos_y > state.opening_state.bottom
@@ -127,14 +127,14 @@ def update_state(action, state: State, key):
 
     # If dist 0 and between top and bottom, bad
     reward += jnp.where(jnp.bitwise_and(
-        opening_dist <= 0.0, 
+        opening_dist == 0.0, 
         jnp.bitwise_or(
             agent_state.pos_y > state.opening_state.top,
             agent_state.pos_y < state.opening_state.bottom
         )
     ), -10.0, 0.0)
 
-    opening_arr = jnp.where(opening_dist == 0.0, 
+    opening_arr = jnp.where(opening_dist < 0.0, 
         get_random_opening_arr(key),
         jnp.array([state.opening_state.top, state.opening_state.bottom, opening_dist]))
 
@@ -207,6 +207,24 @@ class FlappyBird(VectorizedTask):
         state = tree_util.tree_map(lambda s: s[task_id], state)
 
         PIXELS_IN_ONE = 25
+
+        bad_height = state.agent_state.pos_y < state.opening_state.bottom or state.agent_state.pos_y > state.opening_state.top
+
+        if state.opening_state.dist == 0.0 and bad_height:
+            draw.ellipse(
+                (300, 20,
+                 330, 50),
+                fill=(255, 0, 0), outline=(0, 0, 0))
+        elif bad_height:
+            draw.ellipse(
+                (300, 20,
+                 330, 50),
+                fill=(255, 255, 0), outline=(0, 0, 0))
+        elif not bad_height:
+            draw.ellipse(
+                (300, 20,
+                 330, 50),
+                fill=(0, 255, 0), outline=(0, 0, 0))
 
         # Draw bird
         draw.ellipse(
