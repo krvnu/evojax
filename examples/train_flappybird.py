@@ -59,7 +59,7 @@ def parse_args():
     parser.add_argument(
         '--n-repeats', type=int, default=16, help='Training repetitions.')
     parser.add_argument(
-        '--max-iter', type=int, default=50, help='Max training iterations.')
+        '--max-iter', type=int, default=500, help='Max training iterations.')
     parser.add_argument(
         '--test-interval', type=int, default=50, help='Test interval.')
     parser.add_argument(
@@ -85,7 +85,7 @@ def main(config):
     logger.info('EvoJAX SlimeVolley')
     logger.info('=' * 30)
 
-    max_steps = 3000
+    max_steps = 18000
     train_task = FlappyBird(test=False, max_steps=max_steps)
     test_task = FlappyBird(test=True, max_steps=max_steps)
     policy = MLPPolicy(
@@ -143,7 +143,7 @@ def main(config):
 
     gif_file = os.path.join(log_dir, 'slimevolley.gif')
     screens[0].save(gif_file, save_all=True, append_images=screens[1:],
-                    duration=40, loop=0)
+                    duration=120, loop=0)
     logger.info('GIF saved to {}.'.format(gif_file))
 
 

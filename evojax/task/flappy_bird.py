@@ -78,14 +78,14 @@ def get_random_agent_state(key):
 
 def get_random_opening_state(key):
     k_top, k_bottom = random.split(key, 2)
-    top = random.uniform(k_top, shape=(), minval=5.5, maxval=10.0)
-    bottom = random.uniform(k_bottom, shape=(), minval=0.0, maxval=4.5)
+    top = random.uniform(k_top, shape=(), minval=2.0, maxval=10.0)
+    bottom = top - 1.5
     return OpeningState(top=top, bottom=bottom, dist=10.0)
 
 def get_random_opening_arr(key):
     k_top, k_bottom = random.split(key, 2)
-    top = random.uniform(k_top, shape=(), minval=5.5, maxval=10.0)
-    bottom = random.uniform(k_bottom, shape=(), minval=0.0, maxval=4.5)
+    top = random.uniform(k_top, shape=(), minval=2.0, maxval=10.0)
+    bottom = top - 1.5
     return jnp.array([top, bottom, 10.0])
 
 def get_init_game_state_fn(key: jnp.ndarray):
@@ -109,6 +109,12 @@ def update_state(action, state: State, key):
     reward = 0.0
 
     reward += jnp.where(agent_state.pos_y < 0.0, -10.0, 0.0)
+
+    reward += jnp.where(
+        jnp.bitwise_and(
+            agent_state.pos_y < state.opening_state.top,
+            agent_state.pos_y > state.opening_state.bottom
+        ), 0.5, 0.0)
 
     # If dist 0 and between top and bottom, reward
     reward += jnp.where(jnp.bitwise_and(
