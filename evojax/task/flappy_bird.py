@@ -52,6 +52,7 @@ NUM_OBS = 4
 NUM_ACT = 1
 
 AGENT_RADIUS = 5
+MAX_HEIGHT = 100.0
 
 @dataclass
 class AgentState(object):
@@ -78,20 +79,21 @@ def get_random_agent_state(key):
 
 def get_random_opening_state(key):
     k_top, k_bottom = random.split(key, 2)
-    top = random.uniform(k_top, shape=(), minval=2.0, maxval=10.0)
-    bottom = top - 1.5
-    return OpeningState(top=top, bottom=bottom, dist=10.0)
+    top = random.uniform(k_top, shape=(), minval=15.0, maxval=100.0)
+    bottom = top - 10.0
+    return OpeningState(top=top, bottom=bottom, dist=MAX_HEIGHT)
 
 def get_random_opening_arr(key):
     k_top, k_bottom = random.split(key, 2)
-    top = random.uniform(k_top, shape=(), minval=2.0, maxval=10.0)
-    bottom = top - 1.5
-    return jnp.array([top, bottom, 10.0])
+    top = random.uniform(k_top, shape=(), minval=15.0, maxval=MAX_HEIGHT)
+    bottom = top - 10.0
+    return jnp.array([top, bottom, 100.0])
 
 def get_init_game_state_fn(key: jnp.ndarray):
     agent_state = get_random_agent_state(key)
     opening_state = get_random_opening_state(key)
     return agent_state, opening_state
+
 
 def update_state(action, state: State, key):
     
@@ -99,7 +101,7 @@ def update_state(action, state: State, key):
     jump = jnp.clip(action, 0.0, 1.0)[0] * 3.0
     new_pos_y = state.agent_state.pos_y + jump - 1.0
 
-    pos_y = jnp.where(new_pos_y > 10.0, 10.0, new_pos_y)
+    pos_y = jnp.where(new_pos_y > MAX_HEIGHT, MAX_HEIGHT, new_pos_y)
 
     agent_state = AgentState(pos_y=pos_y)
 
@@ -202,50 +204,50 @@ class FlappyBird(VectorizedTask):
 
     @staticmethod
     def render(state: State, task_id: int = 0) -> Image:
-        img = Image.new('RGB', (350, 350), (255, 255, 255))
+        img = Image.new('RGB', (500, 500), (255, 255, 255))
         draw = ImageDraw.Draw(img)
         state = tree_util.tree_map(lambda s: s[task_id], state)
 
-        PIXELS_IN_ONE = 25
+        PIXELS_IN_ONE = 4
 
         bad_height = state.agent_state.pos_y < state.opening_state.bottom or state.agent_state.pos_y > state.opening_state.top
 
         if state.opening_state.dist == 0.0 and bad_height:
             draw.ellipse(
-                (300, 20,
-                 330, 50),
+                (450, 20,
+                 480, 50),
                 fill=(255, 0, 0), outline=(0, 0, 0))
         elif bad_height:
             draw.ellipse(
-                (300, 20,
-                 330, 50),
+                (450, 20,
+                 480, 50),
                 fill=(255, 255, 0), outline=(0, 0, 0))
         elif not bad_height:
             draw.ellipse(
-                (300, 20,
-                 330, 50),
+                (450, 20,
+                 480, 50),
                 fill=(0, 255, 0), outline=(0, 0, 0))
 
         # Draw bird
         draw.ellipse(
-                (BUFFER - AGENT_RADIUS, 350 - BUFFER - state.agent_state.pos_y * PIXELS_IN_ONE - AGENT_RADIUS,
-                 BUFFER + AGENT_RADIUS, 350 - BUFFER - state.agent_state.pos_y * PIXELS_IN_ONE + AGENT_RADIUS),
+                (BUFFER - AGENT_RADIUS, 500 - BUFFER - state.agent_state.pos_y * PIXELS_IN_ONE - AGENT_RADIUS,
+                 BUFFER + AGENT_RADIUS, 500 - BUFFER - state.agent_state.pos_y * PIXELS_IN_ONE + AGENT_RADIUS),
                 fill=(0, 255, 0), outline=(0, 0, 0))
 
         # Draw top line
         draw.line((BUFFER + PIXELS_IN_ONE * state.opening_state.dist, 
             0, 
             BUFFER + PIXELS_IN_ONE * state.opening_state.dist,
-            BUFFER + PIXELS_IN_ONE * (10.0 - state.opening_state.top)),
+            BUFFER + PIXELS_IN_ONE * (MAX_HEIGHT - state.opening_state.top)),
             fill=(0,0,255),
             width=1,
         )
 
         # Draw bottom line
         draw.line((BUFFER + PIXELS_IN_ONE * state.opening_state.dist, 
-            BUFFER + PIXELS_IN_ONE * (10.0 - state.opening_state.bottom), 
+            BUFFER + PIXELS_IN_ONE * (MAX_HEIGHT - state.opening_state.bottom), 
             BUFFER + PIXELS_IN_ONE * state.opening_state.dist,
-            350),
+            500),
             fill=(255,0,0),
             width=1,
         )
