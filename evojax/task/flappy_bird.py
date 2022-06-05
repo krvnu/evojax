@@ -12,16 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Implementation of a multi-agents Soccer task.
-
-Ref: https://mobile.aau.at/~welmenre/papers/fehervari-2010-Evolving_Neural_Network_Controllers_for_a_Team_of_Self-organizing_Robots.pdf
+"""Implementation of a Flappy Bird task.
 """
 
 from typing import Tuple
-from functools import partial
 from PIL import Image
 from PIL import ImageDraw
-import numpy as np
 
 import jax
 import jax.numpy as jnp
@@ -36,17 +32,9 @@ from jax.config import config
 
 config.update("jax_debug_nans", True)
 
-# PIXELS_IN_METER = 10
-# REF_W = 50
-# REF_H = 75
 BUFFER = 50 # buffer for rendering
-# SCREEN_W = FIELD_W * PIXELS_IN_METER + BUFFER * 2
-# SCREEN_H = FIELD_H * PIXELS_IN_METER + BUFFER * 2
-# MAX_BALL_SPEED = 5.0 # TODO
-
-NUM_TEAMS = 2
-TEAM_1 = 0
-TEAM_2 = 1
+PIXELS_IN_ONE = 4
+SCREEN_H = 500
 
 NUM_OBS = 4
 NUM_ACT = 1
@@ -77,17 +65,20 @@ def get_random_agent_state(key):
     y = random.uniform(key, shape=(), minval = 0.0, maxval=10.0)
     return AgentState(pos_y=y)
 
+
 def get_random_opening_state(key):
     k_top, k_bottom = random.split(key, 2)
     top = random.uniform(k_top, shape=(), minval=15.0, maxval=100.0)
     bottom = top - 10.0
     return OpeningState(top=top, bottom=bottom, dist=MAX_HEIGHT)
 
+
 def get_random_opening_arr(key):
     k_top, k_bottom = random.split(key, 2)
     top = random.uniform(k_top, shape=(), minval=15.0, maxval=MAX_HEIGHT)
     bottom = top - 10.0
     return jnp.array([top, bottom, 100.0])
+
 
 def get_init_game_state_fn(key: jnp.ndarray):
     agent_state = get_random_agent_state(key)
@@ -96,7 +87,6 @@ def get_init_game_state_fn(key: jnp.ndarray):
 
 
 def update_state(action, state: State, key):
-    
     # Handle action
     jump = jnp.clip(action, 0.0, 1.0)[0] * 3.0
     new_pos_y = state.agent_state.pos_y + jump - 1.0
@@ -105,13 +95,15 @@ def update_state(action, state: State, key):
 
     agent_state = AgentState(pos_y=pos_y)
 
-    # Handle opening
+    # Handle opening and rewards
     opening_dist = state.opening_state.dist - 1.0
 
     reward = 0.0
 
+    # If bird falls below screen
     reward += jnp.where(agent_state.pos_y < 0.0, -10.0, 0.0)
 
+    # If bird is inbetween opening top/bottom while being away from wall
     reward += jnp.where(
         jnp.bitwise_and(
             agent_state.pos_y < state.opening_state.top,
@@ -136,12 +128,13 @@ def update_state(action, state: State, key):
         )
     ), -10.0, 0.0)
 
+    # Create a new wall if needed
     opening_arr = jnp.where(opening_dist < 0.0, 
         get_random_opening_arr(key),
         jnp.array([state.opening_state.top, state.opening_state.bottom, opening_dist]))
-
     opening_state = OpeningState(top=opening_arr[0], bottom=opening_arr[1], dist=opening_arr[2])
 
+    # Create obs to return
     obs = jnp.array([
         agent_state.pos_y,
         opening_state.top,
@@ -208,10 +201,8 @@ class FlappyBird(VectorizedTask):
         draw = ImageDraw.Draw(img)
         state = tree_util.tree_map(lambda s: s[task_id], state)
 
-        PIXELS_IN_ONE = 4
-
+        # Draw circle that shows whether current height is good or not
         bad_height = state.agent_state.pos_y < state.opening_state.bottom or state.agent_state.pos_y > state.opening_state.top
-
         if state.opening_state.dist == 0.0 and bad_height:
             draw.ellipse(
                 (450, 20,
@@ -230,8 +221,8 @@ class FlappyBird(VectorizedTask):
 
         # Draw bird
         draw.ellipse(
-                (BUFFER - AGENT_RADIUS, 500 - BUFFER - state.agent_state.pos_y * PIXELS_IN_ONE - AGENT_RADIUS,
-                 BUFFER + AGENT_RADIUS, 500 - BUFFER - state.agent_state.pos_y * PIXELS_IN_ONE + AGENT_RADIUS),
+                (BUFFER - AGENT_RADIUS, SCREEN_H - BUFFER - state.agent_state.pos_y * PIXELS_IN_ONE - AGENT_RADIUS,
+                 BUFFER + AGENT_RADIUS, SCREEN_H - BUFFER - state.agent_state.pos_y * PIXELS_IN_ONE + AGENT_RADIUS),
                 fill=(0, 255, 0), outline=(0, 0, 0))
 
         # Draw top line
@@ -247,7 +238,7 @@ class FlappyBird(VectorizedTask):
         draw.line((BUFFER + PIXELS_IN_ONE * state.opening_state.dist, 
             BUFFER + PIXELS_IN_ONE * (MAX_HEIGHT - state.opening_state.bottom), 
             BUFFER + PIXELS_IN_ONE * state.opening_state.dist,
-            500),
+            SCREEN_H),
             fill=(255,0,0),
             width=1,
         )
